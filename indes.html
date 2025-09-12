@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>3ª Catalana G6 — v1.0</title>
+  <style>
+    :root{
+      --bg:#5C4033; /* marrón */
+      --accent:#FFA500; /* naranja */
+      --text:#ffffff; /* blanco */
+      --muted:#d8d8d8;
+      --line:#3e2e26;
+      --card:rgba(255,255,255,0.04);
+    }
+    html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{max-width:1100px;margin:0 auto;padding:10px 12px 90px}
+    header{display:flex;gap:8px;align-items:center;justify-content:space-between}
+    h1{font-size:1.15rem;margin:8px 0}
+    .tag{font-size:.75rem;padding:2px 8px;border-radius:999px;background:var(--accent);color:#000;font-weight:700}
+    .card{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--card)}
+    .grid{display:grid;grid-template-columns:280px 1fr;gap:12px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+
+    select,input,textarea{width:100%;box-sizing:border-box;background:transparent;color:var(--text);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:1rem}
+    select:focus,input:focus,textarea:focus{outline:2px solid var(--accent)}
+    .btn{appearance:none;border:none;background:var(--accent);color:#000;font-weight:700;border-radius:999px;padding:9px 14px;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+
+    .panel h2{margin:0 0 8px;font-size:1rem}
+    .teams{max-height:420px;overflow:auto;border-top:1px dashed var(--line)}
+    .team{display:flex;align-items:center;justify-content:space-between;padding:8px 6px;border-bottom:1px dashed var(--line)}
+    .team .fav{color:var(--accent)}
+
+    .filters{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+    .filters label{display:flex;align-items:center;gap:6px;border:1px solid var(--accent);border-radius:999px;padding:6px 10px}
+
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;border-bottom:1px dashed var(--line);text-align:left}
+    th{font-size:.9rem}
+
+    .row{display:flex;gap:8px;align-items:center}
+    .row>*{flex:1}
+    .row .shrink{flex:0}
+
+    .muted{color:var(--muted)}
+    .pill{border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 8px;font-size:.75rem}
+    .hint{font-size:.85rem;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>3ª Catalana — Grupo 6 <span class="tag">v1.0</span></h1>
+      <div class="row" style="max-width:460px">
+        <select id="season">
+          <option value="2526">Temporada 2025-26</option>
+          <option value="2425">Temporada 2024-25</option>
+        </select>
+        <button class="btn ghost" id="btn-demo">Modo demo</button>
+        <button class="btn" id="btn-import">Importar JSON</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LADO IZQUIERDO: CONTROLES + EQUIPOS -->
+      <aside class="panel card">
+        <h2>Equipos</h2>
+        <div class="row" style="margin-bottom:8px">
+          <input id="searchTeam" placeholder="Buscar equipo…"/>
+          <button id="clearFav" class="btn ghost shrink" title="Quitar favorito">★</button>
+        </div>
+        <div id="teams" class="teams"></div>
+        <p class="hint" style="margin-top:8px">Consejo: marca un equipo ★ favorito para abrir su calendario al iniciar.</p>
+      </aside>
+
+      <!-- LADO DERECHO: CONTENIDO -->
+      <main class="panel">
+        <section class="card" style="margin-bottom:12px">
+          <h2>Resumen</h2>
+          <div class="row">
+            <div>
+              <div><span class="pill">Jornada</span> <span id="jornadaNow">—</span></div>
+              <div style="margin-top:6px"><span class="pill">Próxima</span> <span id="nextMatch">—</span></div>
+            </div>
+            <div>
+              <div><span class="pill">Favorito</span> <span id="favTeam">—</span></div>
+              <div class="hint" style="margin-top:6px">Toque sobre un equipo para ver su calendario completo.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="margin-bottom:12px">
+          <h2>Clasificación</h2>
+          <div class="filters">
+            <label><input type="checkbox" id="onlyFavTable"> Solo favorito</label>
+          </div>
+          <div style="overflow:auto">
+            <table id="tableStanding">
+              <thead><tr><th>#</th><th>Equipo</th><th>Pts</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="hint">Los datos se pueden importar desde la web de la FCF con un pequeño proxy (lo añadimos en v1.1).</div>
+        </section>
+
+        <section class="card">
+          <h2 id="teamTitle">Calendario del equipo</h2>
+          <div class="filters">
+            <label><input type="radio" name="flt" value="all" checked> Todo</label>
+            <label><input type="radio" name="flt" value="played"> Jugados</label>
+            <label><input type="radio" name="flt" value="upcoming"> Próximos</label>
+          </div>
+          <div style="overflow:auto">
+            <table id="tableTeam">
+              <thead>
+                <tr><th>Jor</th><th>Fecha</th><th>Partido</th><th>Hora</th><th>Res</th><th>Goleadores</th><th>Tarjetas</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <section class="card" style="margin-top:12px">
+      <h2>Datos</h2>
+      <p class="hint">Puedes <b>Importar JSON</b> (copiar/pegar) o activar <b>Modo demo</b>. Próxima versión (v1.1): importación automática desde la FCF con proxy y caché.</p>
+      <textarea id="jsonArea" rows="6" placeholder='Pegue aquí un JSON con {"teams":[], "matches":[], "table":[]}'></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnLoadJson">Cargar en la app</button>
+        <button class="btn ghost" id="btnSave">Guardar local</button>
+        <button class="btn ghost" id="btnClear">Limpiar datos</button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // ===== ESQUEMA DE DATOS =====
+    // teams: ["Equipo A", "Equipo B", ...]
+    // matches: [{
+    //   season:"2526", round:1, date:"2025-09-20", time:"17:00", home:"Equipo A", away:"Equipo B",
+    //   result:"2-1"|null, scorers:[{team:"Equipo A", name:"Jugador", min:12}],
+    //   cards:[{team:"Equipo B", name:"Jugador", card:"Amarilla", min:55}], venue:"Campo..."
+    // }]
+    // table: [{team:"Equipo A", pts:3, pj:1, g:1, e:0, p:0, gf:2, gc:1}]
+
+    const STORE_KEY = 'g6_data_v10';
+    const STORE_FAV = 'g6_fav';
+
+    const els = {
+      season: document.getElementById('season'),
+      teams: document.getElementById('teams'),
+      searchTeam: document.getElementById('searchTeam'),
+      clearFav: document.getElementById('clearFav'),
+      favTeam: document.getElementById('favTeam'),
+      jornadaNow: document.getElementById('jornadaNow'),
+      nextMatch: document.getElementById('nextMatch'),
+      tableStanding: document.querySelector('#tableStanding tbody'),
+      onlyFavTable: document.getElementById('onlyFavTable'),
+      teamTitle: document.getElementById('teamTitle'),
+      tableTeam: document.querySelector('#tableTeam tbody'),
+      btnDemo: document.getElementById('btn-demo'),
+      btnImport: document.getElementById('btn-import'),
+      jsonArea: document.getElementById('jsonArea'),
+      btnLoadJson: document.getElementById('btnLoadJson'),
+      btnSave: document.getElementById('btnSave'),
+      btnClear: document.getElementById('btnClear')
+    };
+
+    let DATA = loadLocal() || { season: els.season.value, teams: [], matches: [], table: [] };
+    let currentTeam = localStorage.getItem(STORE_FAV) || null;
+
+    function loadLocal(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)); }catch{return null} }
+    function saveLocal(){ localStorage.setItem(STORE_KEY, JSON.stringify(DATA)); }
+
+    function fmtDate(s){ if(!s) return '—'; const d = new Date(s+'T00:00:00'); return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+
+    // ===== DEMO (equipos y algunos partidos verosímiles del G6) =====
+    const DEMO = {
+      season: '2526',
+      teams: [
+        'ARENYS DE MAR', 'F.E. MONTGAT', 'SINERA UNITED', 'LLAVANERES', 'TIANA', 'MATARONESA',
+        'MOLINOS', 'SANT POL', 'SANTVICENTI', 'VILASSAR MAR B', 'VILASSAR DALT-GIATSU', 'CALELLA',
+        'LA LLANTIA', 'MALGRAT', 'ALELLA', 'PLA D\'EN BOET'
+      ],
+      matches: [
+        {season:'2526', round:1, date:'2025-09-20', time:'17:00', home:'SANTVICENTI', away:'ARENYS DE MAR', result:null, scorers:[], cards:[], venue:'Camp Mpal. Toni Buch'},
+        {season:'2526', round:1, date:'2025-09-20', time:'17:30', home:"PLA D'EN BOET", away:'MATARONESA', result:null, scorers:[], cards:[], venue:"Camp Mpal. Plà d'en Boet"},
+        {season:'2526', round:1, date:'2025-09-20', time:'17:30', home:'MALGRAT', away:'ALELLA', result:null, scorers:[], cards:[], venue:'Camp Mpal. Malgrat de Mar'}
+      ],
+      table: [
+        {team:'ARENYS DE MAR', pts:0, pj:0, g:0, e:0, p:0, gf:0, gc:0},
+        {team:'F.E. MONTGAT', pts:0, pj:0, g:0, e:0, p:0, gf:0, gc:0},
+        {team:'SINERA UNITED', pts:0, pj:0, g:0, e:0, p:0, gf:0, gc:0},
+        {team:'LLAVANERES', pts:0, pj:0, g:0, e:0, p:0, gf:0, gc:0}
+      ]
+    };
+
+    // ===== RENDER =====
+    function renderTeams(){
+      const q = (els.searchTeam.value||'').toLowerCase().trim();
+      const list = (DATA.teams||[]).filter(t=> t.toLowerCase().includes(q));
+      els.teams.innerHTML = list.map(t=>{
+        const star = (t===currentTeam) ? '★' : '☆';
+        return `<div class="team"><span>${t}</span><button data-team="${t}" class="btn ghost fav">${star}</button></div>`;
+      }).join('') || '<div class="muted">Sin equipos (usa Modo demo o importa JSON).</div>';
+      els.teams.querySelectorAll('.fav').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          currentTeam = btn.dataset.team;
+          localStorage.setItem(STORE_FAV, currentTeam);
+          els.favTeam.textContent = currentTeam;
+          renderTeams();
+          renderTeamTable();
+        });
+      });
+    }
+
+    function renderStanding(){
+      let rows = DATA.table || [];
+      if(els.onlyFavTable.checked && currentTeam){ rows = rows.filter(r=> r.team===currentTeam); }
+      els.tableStanding.innerHTML = rows.map((r,i)=>{
+        const isFav = (r.team===currentTeam);
+        return `<tr${isFav? ' style="font-weight:700"':''}><td>${i+1}</td><td>${r.team}</td><td>${r.pts}</td><td>${r.pj}</td><td>${r.g}</td><td>${r.e}</td><td>${r.p}</td><td>${r.gf}</td><td>${r.gc}</td></tr>`;
+      }).join('');
+    }
+
+    function renderSummary(){
+      // cálculo simplificado de jornada y próxima
+      const m = (DATA.matches||[]).filter(x=> x.season===els.season.value);
+      const played = m.filter(x=> x.result);
+      const next = m.find(x=> !x.result);
+      const maxRound = played.reduce((a,b)=> Math.max(a,b.round), 0);
+      els.jornadaNow.textContent = maxRound ? maxRound : '—';
+      els.nextMatch.textContent = next ? `${fmtDate(next.date)} · ${next.time||''} — ${next.home} vs ${next.away}` : '—';
+      els.favTeam.textContent = currentTeam || '—';
+    }
+
+    function renderTeamTable(){
+      const team = currentTeam || (DATA.teams[0]||null);
+      els.teamTitle.textContent = team ? `Calendario de ${team}` : 'Calendario del equipo';
+      if(!team){ els.tableTeam.innerHTML = ''; return; }
+      const flt = (document.querySelector('input[name="flt"]:checked')||{}).value||'all';
+      let rows = (DATA.matches||[]).filter(m=> m.home===team || m.away===team);
+      if(flt==='played'){ rows = rows.filter(m=> !!m.result); }
+      if(flt==='upcoming'){ rows = rows.filter(m=> !m.result); }
+      rows.sort((a,b)=> a.round-b.round);
+      els.tableTeam.innerHTML = rows.map(m=>{
+        const vs = `${m.home} vs ${m.away}`;
+        const scorers = (m.scorers||[]).map(s=> `${s.name} (${s.team} ${s.min}')`).join(', ');
+        const cards = (m.cards||[]).map(c=> `${c.name} ${c.card} ${c.min}'`).join(', ');
+        return `<tr><td>${m.round}</td><td>${fmtDate(m.date)}</td><td>${vs}</td><td>${m.time||''}</td><td>${m.result||''}</td><td>${scorers||''}</td><td>${cards||''}</td></tr>`;
+      }).join('');
+    }
+
+    // ===== EVENTOS =====
+    els.searchTeam.addEventListener('input', renderTeams);
+    els.clearFav.addEventListener('click', ()=>{ currentTeam=null; localStorage.removeItem(STORE_FAV); els.favTeam.textContent='—'; renderTeams(); renderTeamTable(); });
+    els.onlyFavTable.addEventListener('change', renderStanding);
+    document.querySelectorAll('input[name="flt"]').forEach(r=> r.addEventListener('change', renderTeamTable));
+
+    els.btnDemo.addEventListener('click', ()=>{
+      DATA = JSON.parse(JSON.stringify(DEMO)); // deep-ish copy
+      els.season.value = DATA.season;
+      saveLocal();
+      hydrate();
+    });
+
+    els.btnImport.addEventListener('click', ()=>{
+      alert('Copia/pega JSON en el área inferior y pulsa "Cargar en la app".\nFormato: {teams:[], matches:[], table:[]}');
+      document.getElementById('jsonArea').scrollIntoView({behavior:'smooth'});
+    });
+
+    els.btnLoadJson.addEventListener('click', ()=>{
+      try{
+        const obj = JSON.parse(els.jsonArea.value);
+        if(!obj.teams || !obj.matches){ throw new Error('Faltan teams o matches'); }
+        DATA = { season: els.season.value, teams: obj.teams, matches: obj.matches, table: obj.table||[] };
+        saveLocal();
+        hydrate();
+      }catch(e){ alert('JSON inválido: '+e.message); }
+    });
+    els.btnSave.addEventListener('click', ()=>{ saveLocal(); alert('Datos guardados en este dispositivo.'); });
+    els.btnClear.addEventListener('click', ()=>{ if(confirm('¿Borrar datos locales?')){ localStorage.removeItem(STORE_KEY); DATA={season:els.season.value,teams:[],matches:[],table:[]}; hydrate(); }});
+
+    function hydrate(){ renderTeams(); renderStanding(); renderSummary(); renderTeamTable(); }
+
+    // inicio
+    hydrate();
+  </script>
+</body>
+</html>
