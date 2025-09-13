@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>3ª Catalana G6 — v1.1</title>
+  <title>3ª Catalana G6 — v1.1 (single-file)</title>
   <style>
-    :root{ --bg:#5C4033; --accent:#FFA500; --text:#fff; --muted:#d8d8d8; --line:#3e2e26; --card:rgba(255,255,255,.04);}
+    :root{ --bg:#5C4033; --accent:#FFA500; --text:#ffffff; --muted:#d8d8d8; --line:#3e2e26; --card:rgba(255,255,255,0.04); }
     html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:1100px;margin:0 auto;padding:10px 12px 90px}
+    .wrap{max-width:1100px;margin:0 auto;padding:10px 12px 110px}
     header{display:flex;gap:8px;align-items:center;justify-content:space-between}
     h1{font-size:1.15rem;margin:8px 0}
     .tag{font-size:.75rem;padding:2px 8px;border-radius:999px;background:var(--accent);color:#000;font-weight:700}
@@ -26,13 +26,16 @@
     .row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.row .shrink{flex:0}
     .muted{color:var(--muted)} .pill{border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:2px 8px;font-size:.75rem}
     .hint{font-size:.85rem;color:var(--muted)}
+    details{margin-top:10px}
+    summary{cursor:pointer}
+    .mono{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:.9rem}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>3ª Catalana — Grupo 6 <span class="tag">v1.1</span></h1>
-      <div class="row" style="max-width:700px">
+      <div class="row" style="max-width:760px">
         <select id="season">
           <option value="2526">Temporada 2025-26</option>
           <option value="2425">Temporada 2024-25</option>
@@ -79,7 +82,7 @@
               <tr><th>#</th><th>Equipo</th><th>Pts</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>GF</th><th>GC</th></tr>
             </thead><tbody></tbody></table>
           </div>
-          <div class="hint">En v1.1 se carga desde la FCF mediante proxy. En v1.2 añadimos goleadores y sanciones por jugador.</div>
+          <div class="hint">La sincronización automática usa el proxy (Cloudflare Worker). En v1.2 añadimos goleadores y sanciones.</div>
         </section>
 
         <section class="card">
@@ -108,13 +111,20 @@
         <button class="btn ghost" id="btnSave">Guardar local</button>
         <button class="btn ghost" id="btnClear">Limpiar datos</button>
       </div>
+
+      <details>
+        <summary>¿Sin proxy? Haz clic para copiar el <b>Cloudflare Worker</b> (proxy) — <span class="tag">recomendado</span></summary>
+        <p class="hint">Crea un Worker en Cloudflare → pega este código → Deploy. Copia la URL (p.ej. <code>https://tu-worker.workers.dev</code>) en el campo de arriba y pulsa <b>Guardar proxy</b>.</p>
+        <textarea id="workerCode" class="mono" rows="24" readonly></textarea>
+        <div class="row" style="margin-top:8px">
+          <button id="copyWorker" class="btn">Copiar código del Worker</button>
+        </div>
+      </details>
     </section>
   </div>
 
   <script>
-    // ===== ESQUEMA =====
-    // matches: {season, round, date, time, home, away, result, scorers[], cards[], venue}
-
+    // ===== Almacenamiento =====
     const STORE_KEY  = 'g6_data_v11';
     const STORE_FAV  = 'g6_fav';
     const STORE_WORKER = 'g6_worker_url';
@@ -139,7 +149,9 @@
       btnClear: document.getElementById('btnClear'),
       workerUrl: document.getElementById('workerUrl'),
       saveWorker: document.getElementById('saveWorker'),
-      btnSync: document.getElementById('btn-sync')
+      btnSync: document.getElementById('btn-sync'),
+      workerCode: document.getElementById('workerCode'),
+      copyWorker: document.getElementById('copyWorker')
     };
 
     function loadLocal(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY)); }catch{return null} }
@@ -162,7 +174,7 @@
       table: []
     };
 
-    // ===== RENDER =====
+    // ===== Render =====
     function renderTeams(){
       const q = (els.searchTeam.value||'').toLowerCase().trim();
       const list = (DATA.teams||[]).filter(t=> t.toLowerCase().includes(q));
@@ -213,54 +225,65 @@
       }).join('');
     }
 
-    // ===== EVENTOS =====
+    // ===== Eventos =====
     document.getElementById('searchTeam').addEventListener('input', renderTeams);
     document.getElementById('clearFav').addEventListener('click', ()=>{ currentTeam=null; localStorage.removeItem(STORE_FAV); els.favTeam.textContent='—'; renderTeams(); renderTeamTable(); });
     document.getElementById('onlyFavTable').addEventListener('change', renderStanding);
     document.querySelectorAll('input[name="flt"]').forEach(r=> r.addEventListener('change', renderTeamTable));
 
-    els.btnDemo.addEventListener('click', ()=>{
-      DATA = JSON.parse(JSON.stringify(DEMO));
-      els.season.value = DATA.season;
-      saveLocal(); hydrate();
-    });
+    els.btnDemo.addEventListener('click', ()=>{ DATA = JSON.parse(JSON.stringify(DEMO)); els.season.value = DATA.season; saveLocal(); hydrate(); });
+    els.btnImport.addEventListener('click', ()=>{ alert('Copia/pega JSON en el área inferior y pulsa "Cargar en la app".
+Formato: {teams:[], matches:[], table:[]}'); document.getElementById('jsonArea').scrollIntoView({behavior:'smooth'}); });
 
-    els.btnImport.addEventListener('click', ()=>{
-      alert('Copia/pega JSON en el área inferior y pulsa "Cargar en la app".\nFormato: {teams:[], matches:[], table:[]}');
-      document.getElementById('jsonArea').scrollIntoView({behavior:'smooth'});
+    els.btnLoadJson.addEventListener('click', ()=>{
+      try{ const obj = JSON.parse(els.jsonArea.value); if(!obj.teams || !obj.matches) throw new Error('Faltan teams o matches'); DATA = { season: els.season.value, teams: obj.teams, matches: obj.matches, table: obj.table||[] }; saveLocal(); hydrate(); }
+      catch(e){ alert('JSON inválido: '+e.message); }
     });
+    els.btnSave.addEventListener('click', ()=>{ saveLocal(); alert('Datos guardados en este dispositivo.'); });
+    els.btnClear.addEventListener('click', ()=>{ if(confirm('¿Borrar datos locales?')){ localStorage.removeItem(STORE_KEY); DATA={season:els.season.value,teams:[],matches:[],table:[]}; hydrate(); } });
 
-    els.saveWorker.addEventListener('click', ()=>{
-      localStorage.setItem(STORE_WORKER, els.workerUrl.value.trim());
-      alert('Proxy guardado. Ahora puedes usar “Sincronizar FCF”.');
-    });
-
+    els.saveWorker.addEventListener('click', ()=>{ localStorage.setItem(STORE_WORKER, els.workerUrl.value.trim()); alert('Proxy guardado. Ahora puedes usar “Sincronizar FCF”.'); });
     els.btnSync.addEventListener('click', async ()=>{
-      const base = (localStorage.getItem(STORE_WORKER)||'').trim();
-      if(!base){ alert('Configura primero la URL del Cloudflare Worker'); return; }
+      const base = (localStorage.getItem(STORE_WORKER)||'').trim(); if(!base){ alert('Configura primero la URL del Cloudflare Worker'); return; }
       const season = els.season.value;
       try{
         const r = await fetch(`${base.replace(/\/$/,'')}/tercera/g6/${season}/all`);
         if(!r.ok) throw new Error('No se pudo obtener JSON');
-        const obj = await r.json();
-        if(!obj.teams || !obj.matches){ throw new Error('JSON incompleto'); }
+        const obj = await r.json(); if(!obj.teams || !obj.matches) throw new Error('JSON incompleto');
         DATA = { season, teams: obj.teams, matches: obj.matches, table: obj.table||[] };
-        saveLocal(); hydrate();
-        alert('Datos sincronizados desde FCF');
+        saveLocal(); hydrate(); alert('Datos sincronizados desde FCF');
       }catch(e){ alert('Error sincronizando: '+e.message); }
     });
 
-    els.btnLoadJson.addEventListener('click', ()=>{
-      try{
-        const obj = JSON.parse(els.jsonArea.value);
-        if(!obj.teams || !obj.matches) throw new Error('Faltan teams o matches');
-        DATA = { season: els.season.value, teams: obj.teams, matches: obj.matches, table: obj.table||[] };
-        saveLocal(); hydrate();
-      }catch(e){ alert('JSON inválido: '+e.message); }
-    });
+    // ===== Rellenar y copiar Worker (proxy) =====
+    const WORKER_SOURCE = `export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const m = url.pathname.match(^\/tercera\/g6\/(\\d{4})\/(all|calendar|table)$);
+    if(!m) return new Response('Not found', {status:404});
+    const season = m[1];
+    const part = m[2];
+    const BASE = 'https://www.fcf.cat';
+    const endpoints = {
+      calendar: \`${'${BASE}'}/calendari/${'${season}'}/futbol-11/tercera-catalana/grup-6\`,
+      table:    \`${'${BASE}'}/classificacio/${'${season}'}/futbol-11/tercera-catalana/grup-6\`
+    };
+    async function fetchText(u){ const res = await fetch(u, {headers:{'user-agent':'Mozilla/5.0'}}); if(!res.ok) throw new Error('FCF '+res.status); return await res.text(); }
+    const strip = html => html.replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<style[\s\S]*?<\/style>/gi,'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    function parseCalendar(txt){ const out=[]; const blocks=txt.split(/Jornada\s+/i).slice(1); for(const b of blocks){ const round=parseInt((b.match(/^(\\d+)/)||[])[1]||'0',10); const date=((b.match(/(\\d{2}-\\d{2}-\\d{4})/)||[])[1])||null; const rx=/([A-ZÁÉÍÓÚÜÏ.\'\-\s,]+?)\s+(\\d+)\s*-\s*(\\d+)\s+([A-ZÁÉÍÓÚÜÏ.\'\-\s,]+?)(?=(?:\s+[A-ZÁÉÍÓÚÜÏ]|$))/g; let m; const seen=new Set(); while((m=rx.exec(b))){ const home=m[1].trim(); const away=m[4].trim(); const key=\`${'${round}'}|${'${home}'}|${'${away}'}\`; if(seen.has(key)) continue; seen.add(key); out.push({season, round, date, home, away, time:null, result:\`${'${m[2]}'}-${'${m[3]}'}\`, scorers:[], cards:[], venue:null}); } const rx2=/([A-ZÁÉÍÓÚÜÏ.\'\-\s,]+?)\s+vs\s+([A-ZÁÉÍÓÚÜÏ.\'\-\s,]+?)(?=(?:\s+[A-ZÁÉÍÓÚÜÏ]|$))/gi; while((m=rx2.exec(b))){ const home=m[1].trim(); const away=m[2].trim(); const key=\`${'${round}'}|${'${home}'}|${'${away}'}\`; if(seen.has(key)) continue; seen.add(key); out.push({season, round, date, home, away, time:null, result:null, scorers:[], cards:[], venue:null}); } } return out; }
+    function parseTable(txt){ const rows=[]; const re=/(\\d+)\s+([A-ZÁÉÍÓÚÜÏ.\'\-\s,]+?)\s+(\\d+)\s+(\\d+)\s+(\\d+)\s+(\\d+)\s+(\\d+)\s+(\\d+)/g; let m, guard=0; while((m=re.exec(txt)) && guard<40){ guard++; rows.push({pos:+m[1], team:m[2].trim(), pts:+m[3], pj:+m[4], g:+m[5], e:+m[6], p:+m[7], gf:+m[8], gc:+m[9]}); } return rows; }
+    async function getAll(){ const [calHtml, tabHtml] = await Promise.all([fetchText(endpoints.calendar), fetchText(endpoints.table)]); const cal = parseCalendar(strip(calHtml)); const teams = Array.from(new Set(cal.flatMap(m=>[m.home,m.away]).filter(Boolean))).sort(); const table = parseTable(strip(tabHtml)); return { teams, matches: cal, table }; }
+    try{ if(part==='all'){ const data = await getAll(); return new Response(JSON.stringify(data), {headers:{'content-type':'application/json','cache-control':'public, max-age=900'}}); } if(part==='calendar'){ const t=await fetchText(endpoints.calendar); return new Response(JSON.stringify(parseCalendar(strip(t))), {headers:{'content-type':'application/json'}}); } if(part==='table'){ const t=await fetchText(endpoints.table); return new Response(JSON.stringify(parseTable(strip(t))), {headers:{'content-type':'application/json'}}); } return new Response('Not implemented', {status:501}); } catch(e){ return new Response(JSON.stringify({error:e.message}), {status:500, headers:{'content-type':'application/json'}}); }
+  }
+}`;
 
-    els.btnSave.addEventListener('click', ()=>{ saveLocal(); alert('Datos guardados en este dispositivo.'); });
-    els.btnClear.addEventListener('click', ()=>{ if(confirm('¿Borrar datos locales?')){ localStorage.removeItem(STORE_KEY); DATA={season:els.season.value,teams:[],matches:[],table:[]}; hydrate(); } });
+    els.workerCode.value = WORKER_SOURCE
+      .replace("m = url.pathname.match(^\/tercera\/g6\/(\\d{4})\/(all|calendar|table)$)", "m = url.pathname.match(/^\/tercera\/g6\/(\\d{4})\/(all|calendar|table)$/)");
+
+    els.copyWorker.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(els.workerCode.value); alert('Copiado. Ve a Cloudflare → Worker → Create → Pega → Deploy.'); }
+      catch{ els.workerCode.select(); document.execCommand('copy'); alert('Copiado (método alternativo).'); }
+    });
 
     function hydrate(){ renderTeams(); renderStanding(); renderSummary(); renderTeamTable(); }
     hydrate();
