@@ -1,0 +1,22 @@
+{
+  "teams": ["ARENYS DE MAR", "F.E. MONTGAT", "SINERA UNITED", "LLAVANERES", "TIANA", "MATARONESA"],
+  "matches": [
+    { "season": "2526", "round": 1, "date": "2025-09-20", "time": "17:00", "home": "ARENYS DE MAR", "away": "F.E. MONTGAT", "result": null, "scorers": [], "cards": [], "venue": "—" },
+    { "season": "2526", "round": 1, "date": "2025-09-20", "time": "18:00", "home": "SINERA UNITED", "away": "LLAVANERES", "result": null, "scorers": [], "cards": [], "venue": "—" },
+    { "season": "2526", "round": 1, "date": "2025-09-21", "time": "12:00", "home": "TIANA", "away": "MATARONESA", "result": null, "scorers": [], "cards": [], "venue": "—" }
+  ],
+  "table": [
+    { "team": "ARENYS DE MAR", "pts": 0, "pj": 0, "g": 0, "e": 0, "p": 0, "gf": 0, "gc": 0 },
+    { "team": "F.E. MONTGAT",  "pts": 0, "pj": 0, "g": 0, "e": 0, "p": 0, "gf": 0, "gc": 0 }
+  ]
+}
+{
+  "teams": ["ARENYS DE MAR", "F.E. MONTGAT"],
+  "matches": [
+    { "season": "2425", "round": 30, "date": "2025-05-18", "time": "12:00", "home": "ARENYS DE MAR", "away": "F.E. MONTGAT", "result": "2-1", "scorers": [], "cards": [], "venue": "—" }
+  ],
+  "table": [
+    { "team": "ARENYS DE MAR", "pts": 65, "pj": 30, "g": 20, "e": 5, "p": 5, "gf": 60, "gc": 30 },
+    { "team": "F.E. MONTGAT",  "pts": 58, "pj": 30, "g": 17, "e": 7, "p": 6, "gf": 50, "gc": 32 }
+  ]
+}
